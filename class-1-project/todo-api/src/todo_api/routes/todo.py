@@ -1,9 +1,12 @@
 """Todo API routes."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_session
+from ..error_handler import create_error_response
 from ..exceptions import ResourceNotFoundException
 from ..schemas import TodoCreate, TodoListResponse, TodoResponse, TodoUpdate
 from ..services import TodoService
@@ -50,9 +53,13 @@ async def create_todo(
 
     except Exception as exc:
         await session.rollback()
+        error_response = create_error_response(
+            error_code="SERVER_001",
+            message="Failed to create todo",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create todo",
+            detail=error_response.model_dump(),
         )
 
 
@@ -117,9 +124,13 @@ async def list_todos(
         )
 
     except Exception as exc:
+        error_response = create_error_response(
+            error_code="VALIDATION_001",
+            message="Invalid query parameters",
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid query parameters",
+            detail=error_response.model_dump(),
         )
 
 
@@ -153,9 +164,13 @@ async def get_todo(
         todo = await todo_service.get_todo(todo_id, user_id)
 
         if not todo:
+            error_response = create_error_response(
+                error_code="NOT_FOUND_002",
+                message="Todo not found",
+            )
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Todo not found",
+                detail=error_response.model_dump(),
             )
 
         return TodoResponse.from_attributes(todo)
@@ -163,9 +178,13 @@ async def get_todo(
     except HTTPException:
         raise
     except Exception as exc:
+        error_response = create_error_response(
+            error_code="SERVER_001",
+            message="Failed to retrieve todo",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve todo",
+            detail=error_response.model_dump(),
         )
 
 
@@ -210,15 +229,23 @@ async def update_todo(
 
     except ResourceNotFoundException as exc:
         await session.rollback()
+        error_response = create_error_response(
+            error_code=exc.error_code,
+            message=exc.message,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=exc.message,
+            detail=error_response.model_dump(),
         )
     except Exception as exc:
         await session.rollback()
+        error_response = create_error_response(
+            error_code="SERVER_001",
+            message="Failed to update todo",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update todo",
+            detail=error_response.model_dump(),
         )
 
 
@@ -251,13 +278,21 @@ async def delete_todo(
 
     except ResourceNotFoundException as exc:
         await session.rollback()
+        error_response = create_error_response(
+            error_code=exc.error_code,
+            message=exc.message,
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=exc.message,
+            detail=error_response.model_dump(),
         )
     except Exception as exc:
         await session.rollback()
+        error_response = create_error_response(
+            error_code="SERVER_001",
+            message="Failed to delete todo",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete todo",
+            detail=error_response.model_dump(),
         )
