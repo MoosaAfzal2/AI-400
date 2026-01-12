@@ -2,7 +2,7 @@
 
 Master relationship definitions, lazy loading issues, and eager loading strategies with selectinload and joinedload to avoid N+1 query problems.
 
-**Cross-Skill References**: See **pytest-testing skill** `fastapi-sqlmodel-testing.md` for testing relationship eager loading; see **async-sqlmodel skill** `performance.md` for N+1 query detection and optimization.
+**Cross-Skill References**: See **servicebase.md** for implementing eager loading in CRUD operations; see **pytest-testing skill** `fastapi-sqlmodel-testing.md` for testing relationship eager loading; see **async-sqlmodel skill** `performance.md` for N+1 query detection and optimization.
 
 ## Relationship Fundamentals
 

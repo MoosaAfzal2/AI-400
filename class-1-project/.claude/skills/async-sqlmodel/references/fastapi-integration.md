@@ -2,7 +2,7 @@
 
 Integrate async SQLModel database layer with FastAPI endpoints using dependency injection, proper session management, and error handling.
 
-**Cross-Skill References**: See **fastapi-builder skill** for routing patterns and API design; see **pytest-testing skill** `fastapi-sqlmodel-testing.md` for testing endpoints with database dependencies.
+**Cross-Skill References**: See **servicebase.md** for ServiceBase pattern and CRUD operations; see **fastapi-builder skill** for routing patterns and API design; see **pytest-testing skill** `fastapi-sqlmodel-testing.md` for testing endpoints with database dependencies.
 
 ## Session Dependency
 

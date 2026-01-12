@@ -2,7 +2,7 @@
 
 Test async database operations with pytest and pytest-asyncio, covering unit tests, integration tests, fixtures, and mocking patterns specific to SQLModel and FastAPI endpoints.
 
-**Cross-Skill References**: See **async-sqlmodel skill** for database layer design, relationship patterns, and performance optimization; see **fastapi-builder skill** for routing and endpoint patterns.
+**Cross-Skill References**: See **async-sqlmodel skill** `servicebase.md` for ServiceBase CRUD pattern; see **async-sqlmodel skill** for database layer design, relationship patterns, and performance optimization; see **fastapi-builder skill** for routing and endpoint patterns.
 
 ## SQLModel Testing Setup
 

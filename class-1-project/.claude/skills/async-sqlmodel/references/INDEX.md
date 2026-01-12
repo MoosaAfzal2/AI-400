@@ -36,9 +36,10 @@ Welcome to the comprehensive async-sqlmodel skill for FastAPI database integrati
 
 | Reference | Purpose | Time | Key Topics |
 |-----------|---------|------|------------|
+| **[servicebase.md](servicebase.md)** | Generic CRUD service layer | 30 min | ServiceBase class, filtering, pagination, custom services, eager loading |
 | **[relationships.md](relationships.md)** | Define & load relationships | 25 min | One-to-many, many-to-many, eager loading, selectinload, joinedload |
 | **[migrations.md](migrations.md)** | Manage database schema | 20 min | Alembic, auto-generate, upgrade/downgrade |
-| **[fastapi-integration.md](fastapi-integration.md)** | Use database in FastAPI | 20 min | Session dependency, CRUD endpoints, error handling |
+| **[fastapi-integration.md](fastapi-integration.md)** | Use database in FastAPI | 20 min | Session dependency, ServiceBase endpoints, error handling |
 
 ### Production & Best Practices
 
@@ -149,9 +150,10 @@ Welcome to the comprehensive async-sqlmodel skill for FastAPI database integrati
 3. `best-practices.md` - Model organization
 
 #### CRUD Operations
-1. `async-operations.md` - Create, read, update, delete patterns
-2. `relationships.md` - Eager loading for relationships
-3. `fastapi-integration.md` - Using in FastAPI endpoints
+1. `servicebase.md` - Generic ServiceBase for CRUD, filtering, pagination
+2. `async-operations.md` - Create, read, update, delete patterns
+3. `relationships.md` - Eager loading for relationships
+4. `fastapi-integration.md` - Using ServiceBase in FastAPI endpoints
 
 #### FastAPI Integration
 1. `database-setup.md` - Setup and session dependency
@@ -252,6 +254,7 @@ Welcome to the comprehensive async-sqlmodel skill for FastAPI database integrati
 ### Models & Data
 - **models.md** (380 lines) - SQLModel definition, fields, relationships, response models
 - **relationships.md** (420 lines) - Relationship types, eager loading, N+1 prevention
+- **servicebase.md** (500 lines) - Generic CRUD ServiceBase, filtering, pagination, custom services
 - **async-operations.md** (400 lines) - CRUD operations, transactions, error handling
 
 ### FastAPI Integration
@@ -263,7 +266,7 @@ Welcome to the comprehensive async-sqlmodel skill for FastAPI database integrati
 - **performance.md** (450 lines) - Query profiling, N+1 detection, pool tuning, benchmarking, caching
 - **best-practices.md** (380 lines) - Organization, service layer, testing, security
 
-**Total**: 10+ reference files, 3,500+ lines of professional documentation
+**Total**: 11+ reference files, 3,900+ lines of professional documentation
 
 ---
 

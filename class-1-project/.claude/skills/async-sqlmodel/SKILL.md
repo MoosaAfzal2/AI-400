@@ -33,9 +33,11 @@ Ensure all required context is gathered before implementing database layer.
 | "Define models with relationships" | Create SQLModel with foreign keys and eager loading patterns |
 | "Access relationship data" | Provide selectinload/joinedload patterns for lazy relationship loading |
 | "Setup async database connection" | Configure create_async_engine with pooling and async driver |
-| "Create CRUD operations" | Generate async add, read, update, delete functions |
+| "Create CRUD operations" | Generate ServiceBase for reusable async CRUD with eager loading |
+| "Create model-specific service" | Extend ServiceBase for UserService, TeamService, etc. |
+| "Setup advanced filtering" | Implement filter operators (gt, lt, ilike, in, between, etc.) |
 | "Setup database migrations" | Configure Alembic with async template and autogenerate |
-| "Use database in FastAPI endpoints" | Create async dependency for session injection |
+| "Use database in FastAPI endpoints" | Create async dependency for session and service injection |
 | "Handle async transactions" | Setup rollback/commit patterns with error handling |
 
 ---
@@ -135,7 +137,7 @@ Validate Models
   └─ Check type compatibility with async operations
 ```
 
-### 3. Async CRUD Operations
+### 3. Service Layer with ServiceBase
 
 ```
 Identify CRUD Needs
@@ -144,19 +146,19 @@ Identify CRUD Needs
   ├─ Update (modify records)
   └─ Delete (remove records)
          ↓
-Fetch Official Docs (SQLAlchemy async)
-  └─ Async patterns, select(), update(), delete()
+Create ServiceBase (see servicebase.md)
+  ├─ Define generic ServiceBase[Model, Create, Update]
+  ├─ Implement CRUD methods with eager loading support
+  ├─ Add advanced filtering (gt, lt, ilike, in, etc.)
+  └─ Configure transaction management
          ↓
-Implement CRUD (see async-operations.md)
-  ├─ Async create() function
-  ├─ Async read_one() with filters
-  ├─ Async read_many() with pagination
-  ├─ Async update() function
-  ├─ Async delete() function
-  └─ Transaction patterns
+Create Model-Specific Services (see servicebase.md)
+  ├─ UserService(ServiceBase[User, UserCreate, UserUpdate])
+  ├─ TeamService(ServiceBase[Team, TeamCreate, TeamUpdate])
+  └─ Add custom methods beyond CRUD
          ↓
-Test Operations
-  └─ Verify async/await patterns
+Test Service Operations
+  └─ Verify async/await patterns and eager loading
 ```
 
 ### 4. Relationship Eager Loading
@@ -266,9 +268,12 @@ Do your models have relationships?
 - **`models.md`** - SQLModel basics, fields, types, constraints, indexes
 - **`relationships.md`** - Foreign keys, relationships, eager loading with selectinload/joinedload
 
-### Async Operations
-- **`async-operations.md`** - Async CRUD, select/update/delete, transactions, error handling
-- **`fastapi-integration.md`** - Using async database with FastAPI endpoints
+### Service Layer (CRUD Operations)
+- **`servicebase.md`** - Generic ServiceBase class for CRUD, filtering, pagination, eager loading support
+- **`async-operations.md`** - Async CRUD patterns, select/update/delete, transactions, error handling
+
+### FastAPI Integration
+- **`fastapi-integration.md`** - Using ServiceBase with FastAPI endpoints and dependency injection
 
 ### Production & Migrations
 - **`migrations.md`** - Alembic async setup, autogenerate, upgrade workflows
@@ -299,8 +304,10 @@ When uncertain:
 ✅ Setup async database engine with create_async_engine
 ✅ Configure AsyncSession for concurrent requests
 ✅ Define SQLModel models with relationships
-✅ Implement async CRUD operations
-✅ Setup eager loading (selectinload/joinedload) for relationships
+✅ Implement ServiceBase for generic CRUD operations
+✅ Create model-specific services (UserService, TeamService, etc.)
+✅ Support advanced filtering (gt, lt, ilike, in, between, etc.)
+✅ Setup eager loading (selectinload/joinedload) in CRUD operations
 ✅ Configure connection pooling for production
 ✅ Create Alembic migrations with async support
 ✅ Integrate async database with FastAPI endpoints
