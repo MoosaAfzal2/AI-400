@@ -1,12 +1,14 @@
 """Todo API application factory and entry point."""
 
 from contextlib import asynccontextmanager
+from datetime import datetime
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
-from .database import close_db, init_db
+from .database import close_db, get_session, init_db
 
 
 @asynccontextmanager
@@ -48,15 +50,63 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # TODO: Add routes here
-    # from .routes import auth_router, todo_router
-    # app.include_router(auth_router, prefix="/api/v1/auth", tags=["authentication"])
-    # app.include_router(todo_router, prefix="/api/v1/todos", tags=["todos"])
+    # Include auth routes
+    from .routes import auth_router
 
-    # TODO: Add health check endpoint
-    # @app.get("/health", tags=["health"])
-    # async def health_check():
-    #     return {"status": "healthy"}
+    app.include_router(auth_router)
+
+    # Health check endpoint
+    @app.get("/health", tags=["health"])
+    async def health_check() -> dict:
+        """Health check endpoint for monitoring.
+
+        Returns:
+            Status object with timestamp
+        """
+        return {
+            "status": "healthy",
+            "timestamp": str(datetime.utcnow()),
+        }
+
+    # Readiness endpoint for Kubernetes
+    @app.get("/ready", tags=["health"])
+    async def readiness_check(session: AsyncSession = Depends(get_session)) -> dict:
+        """Readiness probe - checks if service is ready to accept traffic.
+
+        Args:
+            session: Database session to verify connectivity
+
+        Returns:
+            Ready status or 503 if not ready
+        """
+        try:
+            # Verify database connectivity
+            from sqlalchemy import text
+
+            await session.execute(text("SELECT 1"))
+            return {
+                "status": "ready",
+                "timestamp": str(datetime.utcnow()),
+            }
+        except Exception:
+            return {
+                "status": "not_ready",
+                "timestamp": str(datetime.utcnow()),
+            }
+
+    # Metrics endpoint for Prometheus
+    @app.get("/metrics", tags=["monitoring"])
+    async def metrics() -> dict:
+        """Prometheus metrics endpoint (basic implementation).
+
+        Returns:
+            Metrics object with basic stats
+        """
+        return {
+            "app_name": "todo-api",
+            "version": "0.1.0",
+            "timestamp": str(datetime.utcnow()),
+        }
 
     return app
 
