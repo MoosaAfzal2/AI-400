@@ -2,7 +2,7 @@
 
 from typing import Generic, List, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
@@ -18,15 +18,14 @@ class PaginationParams(BaseModel):
         description="Number of items to return",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "skip": 0,
                 "limit": 10,
             }
         }
+    )
 
 
 class PaginationResponse(BaseModel, Generic[T]):
@@ -37,10 +36,8 @@ class PaginationResponse(BaseModel, Generic[T]):
     skip: int = Field(..., description="Number of items skipped")
     limit: int = Field(..., description="Limit applied")
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "items": [],
                 "total": 0,
@@ -48,3 +45,4 @@ class PaginationResponse(BaseModel, Generic[T]):
                 "limit": 10,
             }
         }
+    )

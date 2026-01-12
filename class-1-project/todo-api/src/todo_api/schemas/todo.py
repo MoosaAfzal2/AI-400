@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TodoCreate(BaseModel):
@@ -21,15 +21,14 @@ class TodoCreate(BaseModel):
         description="Optional todo description",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "title": "Buy groceries",
                 "description": "Buy milk, eggs, and bread",
             }
         }
+    )
 
 
 class TodoUpdate(BaseModel):
@@ -51,15 +50,14 @@ class TodoUpdate(BaseModel):
         description="Whether todo is completed",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "title": "Buy groceries",
                 "is_completed": True,
             }
         }
+    )
 
 
 class TodoResponse(BaseModel):
@@ -76,11 +74,9 @@ class TodoResponse(BaseModel):
     created_at: datetime = Field(..., description="ISO timestamp when created")
     updated_at: datetime = Field(..., description="ISO timestamp when last updated")
 
-    class Config:
-        """Schema configuration."""
-
-        from_attributes = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": 1,
                 "user_id": 1,
@@ -92,6 +88,7 @@ class TodoResponse(BaseModel):
                 "updated_at": "2026-01-12T12:00:00",
             }
         }
+    )
 
 
 class TodoListResponse(BaseModel):
@@ -105,10 +102,8 @@ class TodoListResponse(BaseModel):
     limit: int = Field(..., description="Number of items returned")
     has_more: bool = Field(..., description="Whether there are more items")
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "items": [
                     {
@@ -128,3 +123,4 @@ class TodoListResponse(BaseModel):
                 "has_more": False,
             }
         }
+    )

@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 
 from .base import Base
@@ -46,10 +47,7 @@ class RefreshToken(Base, table=True):
         back_populates="refresh_tokens",
     )
 
-    class Config:
-        """SQLModel configuration."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenBlacklist(Base, table=True):
@@ -78,7 +76,4 @@ class TokenBlacklist(Base, table=True):
         description="User who owned token",
     )
 
-    class Config:
-        """SQLModel configuration."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

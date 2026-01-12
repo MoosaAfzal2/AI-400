@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserRegister(BaseModel):
@@ -16,15 +16,14 @@ class UserRegister(BaseModel):
         description="Password (8+ chars, uppercase, lowercase, digit, special)",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "SecurePass123!",
             }
         }
+    )
 
 
 class UserLogin(BaseModel):
@@ -33,15 +32,14 @@ class UserLogin(BaseModel):
     email: EmailStr = Field(..., description="User email address")
     password: str = Field(..., description="User password")
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "email": "user@example.com",
                 "password": "SecurePass123!",
             }
         }
+    )
 
 
 class TokenResponse(BaseModel):
@@ -55,10 +53,8 @@ class TokenResponse(BaseModel):
     token_type: str = Field(default="bearer", description="Token type")
     expires_in: int = Field(..., description="Access token expiration in seconds")
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -66,6 +62,7 @@ class TokenResponse(BaseModel):
                 "expires_in": 3600,
             }
         }
+    )
 
 
 class RefreshTokenRequest(BaseModel):
@@ -73,14 +70,13 @@ class RefreshTokenRequest(BaseModel):
 
     refresh_token: str = Field(..., description="Refresh token from login response")
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
             }
         }
+    )
 
 
 class PasswordChange(BaseModel):
@@ -93,15 +89,14 @@ class PasswordChange(BaseModel):
         description="New password (8+ chars, uppercase, lowercase, digit, special)",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "old_password": "OldPass123!",
                 "new_password": "NewPass456!",
             }
         }
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -118,10 +113,8 @@ class ErrorResponse(BaseModel):
         description="Error timestamp",
     )
 
-    class Config:
-        """Schema configuration."""
-
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "error_code": "AUTH_001",
                 "message": "Invalid email or password",
@@ -129,6 +122,7 @@ class ErrorResponse(BaseModel):
                 "timestamp": "2026-01-12T10:30:00.000Z",
             }
         }
+    )
 
 
 class UserResponse(BaseModel):
@@ -140,11 +134,9 @@ class UserResponse(BaseModel):
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
-    class Config:
-        """Schema configuration."""
-
-        from_attributes = True
-        json_schema_extra = {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "example": {
                 "id": 1,
                 "email": "user@example.com",
@@ -153,3 +145,4 @@ class UserResponse(BaseModel):
                 "updated_at": "2026-01-12T10:00:00.000Z",
             }
         }
+    )

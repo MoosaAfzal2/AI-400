@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 
 from .base import Base
@@ -52,7 +53,4 @@ class User(Base, table=True):
         cascade_delete=True,
     )
 
-    class Config:
-        """SQLModel configuration."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

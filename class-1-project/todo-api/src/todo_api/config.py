@@ -2,6 +2,7 @@
 
 from typing import Literal
 
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -10,6 +11,9 @@ class Settings(BaseSettings):
 
     # Database Configuration
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/todoapi"
+    DATABASE_POOL_SIZE: int = 20
+    DATABASE_MAX_OVERFLOW: int = 0
+    DATABASE_POOL_RECYCLE: int = 3600
 
     # JWT Configuration
     JWT_ALGORITHM: str = "HS256"
@@ -32,11 +36,10 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
-    class Config:
-        """Pydantic config."""
-
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
 
 
 # Global settings instance

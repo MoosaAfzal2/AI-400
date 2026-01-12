@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 
 from .base import Base
@@ -58,7 +59,4 @@ class Todo(Base, table=True):
         back_populates="todos",
     )
 
-    class Config:
-        """SQLModel configuration."""
-
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
