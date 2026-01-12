@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.todo_api.config import settings
 from src.todo_api.database import get_session
-from src.todo_api.models import Base, User
+from src.todo_api.models import Base, Todo, User
 from src.todo_api.security import hash_password
 
 
@@ -132,3 +132,37 @@ async def auth_headers(test_user: User) -> dict:
         }
     )
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture
+async def sample_todo(session: AsyncSession, test_user: User) -> Todo:
+    """Create sample todo for test user."""
+    todo = Todo(
+        user_id=test_user.id,
+        title="Sample Todo",
+        description="This is a sample todo for testing",
+        is_completed=False,
+    )
+    session.add(todo)
+    await session.commit()
+    await session.refresh(todo)
+    return todo
+
+
+@pytest.fixture
+async def sample_todos(session: AsyncSession, test_user: User) -> list[Todo]:
+    """Create multiple sample todos for test user."""
+    todos = []
+    for i in range(5):
+        todo = Todo(
+            user_id=test_user.id,
+            title=f"Sample Todo {i+1}",
+            description=f"Description for todo {i+1}",
+            is_completed=i % 2 == 0,
+        )
+        session.add(todo)
+        todos.append(todo)
+    await session.commit()
+    for todo in todos:
+        await session.refresh(todo)
+    return todos
