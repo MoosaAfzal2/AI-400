@@ -78,13 +78,17 @@ def create_access_token(
     """Create JWT access token.
 
     Args:
-        data: Claims to encode
+        data: Claims to encode (sub MUST be string)
         expires_delta: Optional expiration time delta
 
     Returns:
         Encoded JWT token
     """
     to_encode = data.copy()
+
+    # Ensure 'sub' is string (JWT spec requirement)
+    if "sub" in to_encode and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -109,13 +113,17 @@ def create_refresh_token(
     """Create JWT refresh token.
 
     Args:
-        data: Claims to encode
+        data: Claims to encode (sub MUST be string)
         expires_delta: Optional expiration time delta
 
     Returns:
         Encoded JWT token
     """
     to_encode = data.copy()
+
+    # Ensure 'sub' is string (JWT spec requirement)
+    if "sub" in to_encode and not isinstance(to_encode["sub"], str):
+        to_encode["sub"] = str(to_encode["sub"])
 
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -140,7 +148,7 @@ def decode_token(token: str) -> Optional[dict[str, Any]]:
         token: JWT token to decode
 
     Returns:
-        Decoded token payload or None if invalid
+        Decoded token payload with 'sub' converted back to int or None if invalid
     """
     try:
         payload = jwt.decode(
@@ -148,6 +156,14 @@ def decode_token(token: str) -> Optional[dict[str, Any]]:
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
         )
+        # Convert sub back to int if it's a user_id
+        if "sub" in payload and isinstance(payload["sub"], str):
+            try:
+                payload["sub"] = int(payload["sub"])
+            except (ValueError, TypeError):
+                pass  # Keep as string if can't convert
         return payload
-    except JWTError:
+    except JWTError as e:
+        import logging
+        logging.warning(f"JWT decode error: {e}")
         return None

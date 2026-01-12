@@ -56,7 +56,6 @@ class Todo(Base, table=True):
     # Relationships
     owner: "User" = Relationship(
         back_populates="todos",
-        description="Todo owner",
     )
 
     class Config:

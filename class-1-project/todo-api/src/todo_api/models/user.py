@@ -46,12 +46,10 @@ class User(Base, table=True):
     todos: list["Todo"] = Relationship(
         back_populates="owner",
         cascade_delete=True,
-        description="User's todo items",
     )
     refresh_tokens: list["RefreshToken"] = Relationship(
         back_populates="owner",
         cascade_delete=True,
-        description="User's refresh tokens",
     )
 
     class Config:

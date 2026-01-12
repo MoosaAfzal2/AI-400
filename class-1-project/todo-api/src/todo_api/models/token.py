@@ -44,7 +44,6 @@ class RefreshToken(Base, table=True):
     # Relationships
     owner: "User" = Relationship(
         back_populates="refresh_tokens",
-        description="Token owner",
     )
 
     class Config:
