@@ -85,6 +85,32 @@ async def test_user(session: AsyncSession) -> User:
 
 
 @pytest.fixture
+async def test_user_id(test_user: User) -> int:
+    """Get test user ID."""
+    return test_user.id
+
+
+@pytest.fixture
+async def other_user(session: AsyncSession) -> User:
+    """Create another test user for isolation testing."""
+    user = User(
+        email="other@example.com",
+        password_hash=hash_password("OtherPass123!"),
+        is_active=True,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def other_user_id(other_user: User) -> int:
+    """Get other user ID."""
+    return other_user.id
+
+
+@pytest.fixture
 async def test_user_data():
     """Test user registration data."""
     return {

@@ -50,10 +50,11 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include auth routes
-    from .routes import auth_router
+    # Include auth and todo routes
+    from .routes import auth_router, todo_router
 
     app.include_router(auth_router)
+    app.include_router(todo_router)
 
     # Health check endpoint
     @app.get("/health", tags=["health"])
