@@ -4,16 +4,17 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
 
 from .config import settings
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing with Argon2
+password_hash = PasswordHash((Argon2Hasher(),))
 
 
 def hash_password(password: str) -> str:
-    """Hash password using bcrypt.
+    """Hash password using Argon2.
 
     Args:
         password: Plain text password
@@ -21,7 +22,7 @@ def hash_password(password: str) -> str:
     Returns:
         Hashed password
     """
-    return pwd_context.hash(password, rounds=settings.BCRYPT_COST_FACTOR)
+    return password_hash.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -34,7 +35,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
 
 
 def validate_password(password: str) -> tuple[bool, Optional[str]]:
