@@ -269,6 +269,11 @@ The following features are intentionally excluded from this initial release:
 - Q3: Bcrypt Cost Factor for Password Hashing → A: Use cost factor 10 for balanced security and performance (~100ms per hash). Industry standard for most applications.
 - Q4: Password Change Functionality → A: Include password change functionality in MVP. System must provide /auth/change-password endpoint requiring current password verification before allowing change.
 - Q5: Password Validation Rules → A: Enforce mixed character types: minimum 8 characters, must include uppercase letter, lowercase letter, number, and special character. Strong security aligned with production standards.
+- Q6: API Request/Response Schema Specification → A: Include detailed JSON schemas with field types, nullability, and constraints for all endpoints (request/response examples). Prevents ambiguity during implementation and enables auto-generated documentation.
+- Q7: Web Framework & Technology Stack → A: FastAPI with async/await patterns. Async SQLAlchemy + async-sqlmodel ORM. Pydantic v2 for validation. Native OpenAPI documentation generation.
+- Q8: Observability & Operational Readiness → A: Comprehensive approach - Structured JSON logging for all auth events/errors, key metrics (latency/success rates/auth failures), /health endpoint for monitoring, dashboard-ready metrics for SLO compliance.
+- Q9: Token Storage & Refresh Token Persistence → A: Database-backed approach - Store refresh tokens in database table with issued_at, expires_at, revoked_at columns. Single revocation tracking table. Enables audit trails and per-token control.
+- Q10: Error Handling & HTTP Status Code Taxonomy → A: Standardized error responses - All errors return JSON with error_code (AUTH_001, VALIDATION_002, etc.), message, details, timestamp. Map specific failures to distinct codes. Define in spec appendix.
 
 ---
 
@@ -286,6 +291,59 @@ The following features are intentionally excluded from this initial release:
 - **FR-025**: System MUST provide a password change endpoint (/auth/change-password) for authenticated users
 - **FR-026**: System MUST require current password verification before allowing a user to change their password (prevents unauthorized password changes if account is compromised temporarily)
 - **FR-027**: System MUST return clear error messages when password change fails due to incorrect current password or weak new password
+- **FR-028**: System MUST provide detailed JSON request/response schemas for all endpoints including field types, nullability constraints, and validation rules
+- **FR-029**: System MUST include example payloads in API documentation for each endpoint (registration, login, token refresh, logout, password change, todo CRUD)
+- **FR-030**: Technology Stack: API MUST be built with FastAPI framework using async/await patterns for high concurrency support
+- **FR-031**: Technology Stack: System MUST use async SQLAlchemy with async-sqlmodel ORM for type-safe async database operations
+- **FR-032**: Technology Stack: System MUST use Pydantic v2 for request/response validation and serialization with native OpenAPI documentation generation
+- **FR-033**: Observability: System MUST implement structured JSON logging for all authentication events (registration, login, logout, token refresh, password change) with timestamps and user context
+- **FR-034**: Observability: System MUST expose key metrics including endpoint latency (p50/p95/p99), authentication success/failure rates, and request volume via /metrics endpoint (Prometheus-compatible format)
+- **FR-035**: Observability: System MUST provide a /health endpoint returning 200 OK with system status (database connectivity, token blacklist service availability)
+- **FR-036**: Observability: System MUST log all authentication failures with reason (invalid credentials, expired token, revoked token) for security auditing without exposing sensitive data
+- **FR-037**: Token Storage: System MUST persist refresh tokens in database with RefreshToken table containing: user_id (FK), token_jti (unique), issued_at, expires_at, revoked_at (nullable), and ip_address for audit trail
+- **FR-038**: Token Storage: System MUST maintain a unified token revocation/blacklist that tracks both invalidated refresh tokens and access tokens with revocation timestamp and reason
+- **FR-039**: Token Storage: System MUST clean up expired refresh tokens and revoked tokens periodically (daily background job) to prevent unbounded table growth
+- **FR-040**: Error Handling: System MUST return standardized JSON error responses with format: { error_code: string, message: string, details: object, timestamp: ISO8601 }
+- **FR-041**: Error Handling: System MUST map specific authentication/validation failures to distinct error codes (AUTH_001, AUTH_002, VALIDATION_001, etc.) for precise client error handling and debugging
+
+---
+
+## Error Code Taxonomy
+
+All error responses MUST follow the standardized format and include one of the following error codes:
+
+### Authentication Errors (HTTP 401)
+- **AUTH_001**: Invalid credentials (email not found or password incorrect)
+- **AUTH_002**: Access token expired (user must use refresh token or re-login)
+- **AUTH_003**: Refresh token expired (user must re-login)
+- **AUTH_004**: Token revoked/blacklisted (logout was called or admin revoked)
+- **AUTH_005**: Invalid token format or missing in request
+- **AUTH_006**: Token signature verification failed
+- **AUTH_007**: User account not found or disabled
+
+### Authorization Errors (HTTP 403)
+- **AUTHZ_001**: User lacks permission to access requested todo (belongs to different user)
+- **AUTHZ_002**: User lacks permission to perform requested action
+
+### Validation Errors (HTTP 400/422)
+- **VALIDATION_001**: Email format invalid or missing
+- **VALIDATION_002**: Password does not meet strength requirements (8+ chars, mixed case, number, special char)
+- **VALIDATION_003**: Email already registered
+- **VALIDATION_004**: Required field missing (title, description, etc.)
+- **VALIDATION_005**: Field value exceeds max length
+- **VALIDATION_006**: Invalid enum value (e.g., invalid completion status)
+- **VALIDATION_007**: Current password incorrect (during password change)
+- **VALIDATION_008**: New password same as current password
+
+### Resource Errors (HTTP 404)
+- **RESOURCE_001**: Todo item not found
+- **RESOURCE_002**: User not found
+
+### Server Errors (HTTP 500)
+- **SERVER_001**: Database connection failure
+- **SERVER_002**: Internal server error (unhandled exception)
+- **SERVER_003**: Token blacklist service unavailable
+- **SERVER_004**: Unexpected error during password hashing
 
 ---
 
