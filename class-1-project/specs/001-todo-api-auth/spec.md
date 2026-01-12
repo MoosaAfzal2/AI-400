@@ -260,3 +260,32 @@ The following features are intentionally excluded from this initial release:
 
 ---
 
+## Clarifications
+
+### Session 2026-01-12
+
+- Q1: Token Refresh & Expiration Strategy → A: Implement refresh token mechanism with access token (short-lived, ~1 hour) and refresh token (long-lived, ~7 days). Refresh endpoint allows silent token renewal without re-login.
+- Q2: Logout Behavior & Token Invalidation → A: Implement explicit logout endpoint (/auth/logout). Server maintains token blacklist/revocation. Logging out immediately invalidates both access and refresh tokens.
+- Q3: Bcrypt Cost Factor for Password Hashing → A: Use cost factor 10 for balanced security and performance (~100ms per hash). Industry standard for most applications.
+- Q4: Password Change Functionality → A: Include password change functionality in MVP. System must provide /auth/change-password endpoint requiring current password verification before allowing change.
+- Q5: Password Validation Rules → A: Enforce mixed character types: minimum 8 characters, must include uppercase letter, lowercase letter, number, and special character. Strong security aligned with production standards.
+
+---
+
+### Updated Functional Requirements (from Clarifications)
+
+- **FR-006a**: System MUST return two tokens upon successful login: access token (short-lived, expires in 1 hour) and refresh token (long-lived, expires in 7 days)
+- **FR-006b**: System MUST provide a refresh endpoint (/auth/refresh) that accepts a valid refresh token and returns a new access token without requiring re-authentication
+- **FR-008a**: System MUST reject access tokens that have expired, returning 401 Unauthorized with "token expired" indicator
+- **FR-008b**: System MUST reject refresh tokens that have expired, forcing users to re-authenticate via login
+- **FR-008c**: System MUST provide a logout endpoint (/auth/logout) that immediately invalidates both access and refresh tokens
+- **FR-008d**: System MUST maintain a token blacklist/revocation list to prevent use of logged-out tokens even before natural expiration
+- **FR-008e**: System MUST check all incoming tokens against the revocation list; revoked tokens MUST be rejected with 401 Unauthorized
+- **FR-004a**: System MUST use bcrypt cost factor 10 when hashing passwords (approximately 100ms per hash operation on modern hardware)
+- **FR-003a**: System MUST enforce strong password validation: minimum 8 characters with required mix of uppercase letter (A-Z), lowercase letter (a-z), number (0-9), and special character (!@#$%^&*). Apply during both registration and password change.
+- **FR-025**: System MUST provide a password change endpoint (/auth/change-password) for authenticated users
+- **FR-026**: System MUST require current password verification before allowing a user to change their password (prevents unauthorized password changes if account is compromised temporarily)
+- **FR-027**: System MUST return clear error messages when password change fails due to incorrect current password or weak new password
+
+---
+
