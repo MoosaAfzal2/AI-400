@@ -2,6 +2,7 @@
 
 from typing import AsyncGenerator
 import logging
+import re
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -14,6 +15,19 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
+# Convert old postgresql:// URLs to postgresql+asyncpg:// for async support
+async_database_url = settings.DATABASE_URL
+if async_database_url.startswith("postgresql://"):
+    async_database_url = async_database_url.replace("postgresql://", "postgresql+asyncpg://")
+elif async_database_url.startswith("postgresql+psycopg://"):
+    # Convert psycopg (sync) to asyncpg (async)
+    async_database_url = async_database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+
+# Convert sslmode parameter to ssl parameter for asyncpg
+async_database_url = re.sub(r'sslmode=', 'ssl=', async_database_url)
+
+logger.info(f"Using database URL: {async_database_url.split('@')[0]}@***")
+
 # Build engine kwargs based on database type
 _engine_kwargs = {
     "echo": settings.DEBUG,
@@ -21,7 +35,7 @@ _engine_kwargs = {
 }
 
 # Only add PostgreSQL-specific options for non-SQLite databases
-if "sqlite" not in settings.DATABASE_URL.lower():
+if "sqlite" not in async_database_url.lower():
     _engine_kwargs.update({
         "pool_size": 20,
         "max_overflow": 0,
@@ -35,14 +49,15 @@ else:
     })
 
 # Create async engine with connection pooling
-# Wrap in try-except to handle missing database drivers in development
+# Wrap in try-except to handle connection issues in development
 try:
     engine: AsyncEngine = create_async_engine(
-        settings.DATABASE_URL,
+        async_database_url,
         **_engine_kwargs,
     )
-except ModuleNotFoundError as e:
-    logger.warning(f"Database driver not available: {e}. Running in development mode without database.")
+    logger.info("Database engine created successfully")
+except Exception as e:
+    logger.warning(f"Failed to create database engine: {e}. Running in development mode without database.")
     engine = None
 
 # Create async session factory only if engine exists
