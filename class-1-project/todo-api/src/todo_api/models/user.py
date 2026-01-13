@@ -42,6 +42,11 @@ class User(Base, table=True):
         nullable=False,
         description="Whether user is active",
     )
+    is_admin: bool = Field(
+        default=False,
+        nullable=False,
+        description="Whether user has admin privileges",
+    )
 
     # Relationships
     todos: list["Todo"] = Relationship(

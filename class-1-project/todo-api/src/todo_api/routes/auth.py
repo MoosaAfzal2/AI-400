@@ -1,11 +1,15 @@
 """Authentication API routes."""
 
-from datetime import datetime
-
+import logging
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import OAuth2PasswordRequestForm
 
-from ..database import get_session
+from ..dependencies import (
+    AuthServiceDep,
+    CurrentUserDep,
+    SessionDep,
+)
 from ..exceptions import (
     AuthenticationException,
     ConflictException,
@@ -20,8 +24,10 @@ from ..schemas import (
     UserRegister,
     UserResponse,
 )
-from ..services import AuthService, TokenService, UserService
+from ..security import decode_token, verify_password
+from ..services import TokenService
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 
 
@@ -36,12 +42,14 @@ router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 )
 async def register(
     data: UserRegister,
-    session: AsyncSession = Depends(get_session),
+    auth_service: AuthServiceDep,
+    session: SessionDep,
 ) -> TokenResponse:
     """Register new user and return access token.
 
     Args:
         data: Registration request (email, password)
+        auth_service: Injected auth service
         session: Database session
 
     Returns:
@@ -53,14 +61,13 @@ async def register(
     """
     try:
         # Register user
-        auth_service = AuthService(session)
         user = await auth_service.register_user(data.email, data.password)
-        await auth_service.commit()
+        await session.commit()
 
         # Generate tokens
         token_service = TokenService(session)
         tokens = await token_service.generate_tokens(user.id, user.email)
-        await token_service.commit()
+        await session.commit()
 
         return TokenResponse(**tokens)
 
@@ -69,6 +76,7 @@ async def register(
         raise HTTPException(status_code=exc.status_code, detail=exc.message)
     except Exception as exc:
         await session.rollback()
+        logger.exception("Register failed with exception: %s", str(exc))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed",
@@ -83,13 +91,18 @@ async def register(
     },
 )
 async def login(
-    data: UserLogin,
-    session: AsyncSession = Depends(get_session),
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    auth_service: AuthServiceDep,
+    session: SessionDep,
 ) -> TokenResponse:
     """Login user and return access token.
 
+    OAuth2 compatible token login endpoint. The username field from OAuth2PasswordRequestForm
+    is mapped to email for authentication.
+
     Args:
-        data: Login request (email, password)
+        form_data: OAuth2 password request form (username, password)
+        auth_service: Injected auth service
         session: Database session
 
     Returns:
@@ -99,14 +112,13 @@ async def login(
         AuthenticationException: If credentials invalid
     """
     try:
-        # Authenticate user
-        auth_service = AuthService(session)
-        user = await auth_service.authenticate_user(data.email, data.password)
+        # Authenticate user using form_data.username as email (OAuth2 standard)
+        user = await auth_service.authenticate_user(form_data.username, form_data.password)
 
         # Generate tokens
         token_service = TokenService(session)
         tokens = await token_service.generate_tokens(user.id, user.email)
-        await token_service.commit()
+        await session.commit()
 
         return TokenResponse(**tokens)
 
@@ -115,6 +127,7 @@ async def login(
         raise HTTPException(status_code=401, detail=exc.message)
     except Exception as exc:
         await session.rollback()
+        logger.exception("Login failed with exception: %s", str(exc))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed",
@@ -130,7 +143,7 @@ async def login(
 )
 async def refresh_token(
     data: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> TokenResponse:
     """Refresh access token using refresh token.
 
@@ -147,7 +160,7 @@ async def refresh_token(
     try:
         token_service = TokenService(session)
         tokens = await token_service.refresh_access_token(data.refresh_token)
-        await token_service.commit()
+        await session.commit()
 
         return TokenResponse(**tokens)
 
@@ -171,7 +184,7 @@ async def refresh_token(
 )
 async def logout(
     data: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_session),
+    session: SessionDep,
 ) -> None:
     """Logout user by revoking refresh token.
 
@@ -186,8 +199,6 @@ async def logout(
         token_service = TokenService(session)
 
         # Decode refresh token to get JTI
-        from ..security import decode_token
-
         payload = decode_token(data.refresh_token)
         if not payload:
             raise AuthenticationException(
@@ -199,7 +210,7 @@ async def logout(
         jti = payload.get("jti")
         if jti:
             await token_service.revoke_refresh_token(jti)
-            await token_service.commit()
+            await session.commit()
 
     except AuthenticationException as exc:
         await session.rollback()
@@ -221,13 +232,17 @@ async def logout(
     },
 )
 async def change_password(
+    current_user: CurrentUserDep,
     data: PasswordChange,
-    session: AsyncSession = Depends(get_session),
+    auth_service: AuthServiceDep,
+    session: SessionDep,
 ) -> UserResponse:
     """Change user password.
 
     Args:
+        current_user: Currently authenticated user
         data: Current and new password
+        auth_service: Injected auth service
         session: Database session
 
     Returns:
@@ -237,9 +252,23 @@ async def change_password(
         AuthenticationException: If current password incorrect
         ValidationException: If new password invalid
     """
-    # This endpoint requires authentication (to be added in next step)
-    # For now, it's a placeholder
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Requires authenticated user (coming soon)",
-    )
+    try:
+        # Change password (includes old password verification inside)
+        await auth_service.change_password(
+            current_user.id,
+            data.current_password,
+            data.new_password,
+        )
+        await session.commit()
+
+        return UserResponse.model_validate(current_user, from_attributes=True)
+
+    except (AuthenticationException, ValidationException) as exc:
+        await session.rollback()
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
+    except Exception as exc:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to change password",
+        )

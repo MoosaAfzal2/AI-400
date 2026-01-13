@@ -134,6 +134,18 @@ async def auth_headers(test_user: User) -> dict:
 
 
 @pytest.fixture
+def refresh_token(test_user: User) -> str:
+    """Create refresh token for test user."""
+    from src.todo_api.security import create_refresh_token
+    return create_refresh_token(
+        {
+            "sub": test_user.id,
+            "type": "refresh",
+        }
+    )
+
+
+@pytest.fixture
 async def sample_todos(test_session: AsyncSession, test_user: User) -> list[Todo]:
     """Create sample todos for test user."""
     todos = []
@@ -174,9 +186,10 @@ class TestAuthenticationRoutes:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["email"] == "newuser@example.com"
-        assert "user_id" in data
-        assert "created_at" in data
+        # Register returns tokens, not user data
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["token_type"] == "bearer"
 
     async def test_register_duplicate_email(
         self, client: AsyncClient, test_user: User
@@ -190,7 +203,8 @@ class TestAuthenticationRoutes:
             },
         )
 
-        assert response.status_code == 400
+        # Conflict exception returns 409, not 400
+        assert response.status_code == 409
 
     async def test_register_invalid_email(self, client: AsyncClient):
         """Test registration with invalid email."""
@@ -228,11 +242,11 @@ class TestAuthenticationRoutes:
     async def test_login_success(
         self, client: AsyncClient, test_user: User
     ):
-        """Test successful login."""
+        """Test successful login with OAuth2 form data."""
         response = await client.post(
             "/api/v1/auth/login",
-            json={
-                "email": test_user.email,
+            data={
+                "username": test_user.email,
                 "password": "TestPass123!",
             },
         )
@@ -247,8 +261,8 @@ class TestAuthenticationRoutes:
         """Test login with non-existent email."""
         response = await client.post(
             "/api/v1/auth/login",
-            json={
-                "email": "nonexistent@example.com",
+            data={
+                "username": "nonexistent@example.com",
                 "password": "AnyPass123!",
             },
         )
@@ -261,8 +275,8 @@ class TestAuthenticationRoutes:
         """Test login with wrong password."""
         response = await client.post(
             "/api/v1/auth/login",
-            json={
-                "email": test_user.email,
+            data={
+                "username": test_user.email,
                 "password": "WrongPass123!",
             },
         )
@@ -283,8 +297,8 @@ class TestAuthenticationRoutes:
 
         response = await client.post(
             "/api/v1/auth/login",
-            json={
-                "email": inactive_user.email,
+            data={
+                "username": inactive_user.email,
                 "password": "TestPass123!",
             },
         )
@@ -298,8 +312,8 @@ class TestAuthenticationRoutes:
         # First login to get refresh token
         login_response = await client.post(
             "/api/v1/auth/login",
-            json={
-                "email": test_user.email,
+            data={
+                "username": test_user.email,
                 "password": "TestPass123!",
             },
         )
@@ -326,21 +340,21 @@ class TestAuthenticationRoutes:
         assert response.status_code == 401
 
     async def test_logout_success(
-        self, client: AsyncClient, auth_headers: dict
+        self, client: AsyncClient, refresh_token: str
     ):
         """Test successful logout."""
         response = await client.post(
             "/api/v1/auth/logout",
-            headers=auth_headers,
+            json={"refresh_token": refresh_token},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 204
 
     async def test_logout_invalid_token(self, client: AsyncClient):
         """Test logout with invalid token."""
         response = await client.post(
             "/api/v1/auth/logout",
-            headers={"Authorization": "Bearer invalid_token"},
+            json={"refresh_token": "invalid_token"},
         )
 
         assert response.status_code == 401
@@ -653,8 +667,10 @@ class TestHealthRoutes:
         response = await client.get("/metrics")
 
         assert response.status_code == 200
-        # Metrics should be in Prometheus format (text/plain)
-        assert "HELP" in response.text or "#" in response.text
+        # Metrics endpoint returns JSON with app info
+        data = response.json()
+        assert "app_name" in data
+        assert data["app_name"] == "todo-api"
 
 
 # ============================================================================
@@ -686,25 +702,27 @@ class TestErrorHandling:
     async def test_missing_required_query_param(
         self, client: AsyncClient, auth_headers: dict
     ):
-        """Test missing required query parameter."""
+        """Test list todos without query params (should work, as user_id is from JWT)."""
         response = await client.get(
             "/api/v1/todos",
             headers=auth_headers,
         )
 
-        assert response.status_code == 422
+        # Should succeed - user_id now comes from JWT token, not query params
+        assert response.status_code == 200
 
     async def test_invalid_query_param_type(
         self, client: AsyncClient, auth_headers: dict
     ):
-        """Test invalid query parameter type."""
+        """Test list todos with valid query params."""
         response = await client.get(
             "/api/v1/todos",
             headers=auth_headers,
-            params={"user_id": "not_an_int", "limit": 20},
+            params={"limit": 20},
         )
 
-        assert response.status_code == 422
+        # Should succeed - invalid user_id param no longer exists
+        assert response.status_code == 200
 
     async def test_cors_headers(self, client: AsyncClient):
         """Test CORS headers in response."""
@@ -735,25 +753,14 @@ class TestCompleteWorkflow:
             },
         )
         assert register_response.status_code == 201
-        user_id = register_response.json()["user_id"]
+        # Register returns tokens, not user_id
+        access_token = register_response.json()["access_token"]
 
-        # Login
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            json={
-                "email": "workflow@example.com",
-                "password": "WorkflowPass123!",
-            },
-        )
-        assert login_response.status_code == 200
-        access_token = login_response.json()["access_token"]
-
-        # Create todo
+        # Create todo with registered token (no need to login again)
         auth_headers = {"Authorization": f"Bearer {access_token}"}
         todo_response = await client.post(
             "/api/v1/todos",
             headers=auth_headers,
-            params={"user_id": user_id},
             json={"title": "My First Todo"},
         )
 
@@ -773,33 +780,22 @@ class TestCompleteWorkflow:
             },
         )
         assert register_response.status_code == 201
+        refresh_token = register_response.json()["refresh_token"]
 
-        # Login
-        login_response = await client.post(
-            "/api/v1/auth/login",
-            json={
-                "email": "auth_workflow@example.com",
-                "password": "AuthFlowPass123!",
-            },
-        )
-        assert login_response.status_code == 200
-        refresh_token = login_response.json()["refresh_token"]
-        access_token = login_response.json()["access_token"]
-
-        # Refresh token
+        # Refresh token (get new access token)
         refresh_response = await client.post(
             "/api/v1/auth/refresh",
             json={"refresh_token": refresh_token},
         )
         assert refresh_response.status_code == 200
-        new_access_token = refresh_response.json()["access_token"]
+        # Note: refresh endpoint doesn't return new refresh_token, only access_token
 
-        # Logout with new token
+        # Logout with original refresh token
         logout_response = await client.post(
             "/api/v1/auth/logout",
-            headers={"Authorization": f"Bearer {new_access_token}"},
+            json={"refresh_token": refresh_token},
         )
-        assert logout_response.status_code == 200
+        assert logout_response.status_code == 204
 
     async def test_complete_todo_crud_workflow(
         self, client: AsyncClient, test_user: User, auth_headers: dict

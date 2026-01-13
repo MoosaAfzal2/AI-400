@@ -1,15 +1,15 @@
 """Todo API routes."""
 
-from datetime import datetime
+from fastapi import APIRouter, HTTPException, Query, status
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from ..database import get_session
+from ..dependencies import (
+    CurrentUserDep,
+    SessionDep,
+    TodoServiceDep,
+)
 from ..error_handler import create_error_response
 from ..exceptions import ResourceNotFoundException
 from ..schemas import TodoCreate, TodoListResponse, TodoResponse, TodoUpdate
-from ..services import TodoService
 
 router = APIRouter(prefix="/api/v1/todos", tags=["todos"])
 
@@ -24,15 +24,17 @@ router = APIRouter(prefix="/api/v1/todos", tags=["todos"])
 )
 async def create_todo(
     data: TodoCreate,
-    session: AsyncSession = Depends(get_session),
-    user_id: int = Query(..., description="User ID (authenticated user)"),
+    current_user: CurrentUserDep,
+    todo_service: TodoServiceDep,
+    session: SessionDep,
 ) -> TodoResponse:
     """Create new todo for authenticated user.
 
     Args:
         data: Todo creation request
+        current_user: Authenticated user from JWT token
+        todo_service: Injected todo service
         session: Database session
-        user_id: Authenticated user ID
 
     Returns:
         Created TodoResponse
@@ -41,13 +43,12 @@ async def create_todo(
         ValidationException: If validation fails
     """
     try:
-        todo_service = TodoService(session)
         todo = await todo_service.create_todo(
-            user_id=user_id,
+            user_id=current_user.id,
             title=data.title,
             description=data.description,
         )
-        await todo_service.commit()
+        await session.commit()
 
         return TodoResponse.model_validate(todo, from_attributes=True)
 
@@ -71,8 +72,8 @@ async def create_todo(
     },
 )
 async def list_todos(
-    session: AsyncSession = Depends(get_session),
-    user_id: int = Query(..., description="User ID (authenticated user)"),
+    current_user: CurrentUserDep,
+    todo_service: TodoServiceDep,
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(20, ge=1, le=100, description="Number of items to return"),
     is_completed: bool | None = Query(None, description="Filter by completion status"),
@@ -90,8 +91,8 @@ async def list_todos(
     """List todos for authenticated user with pagination and filtering.
 
     Args:
-        session: Database session
-        user_id: Authenticated user ID
+        current_user: Authenticated user from JWT token
+        todo_service: Injected todo service
         skip: Number of items to skip
         limit: Number of items to return
         is_completed: Optional filter by completion status
@@ -105,9 +106,8 @@ async def list_todos(
         HTTPException: If query invalid
     """
     try:
-        todo_service = TodoService(session)
         todos, total = await todo_service.list_todos(
-            user_id=user_id,
+            user_id=current_user.id,
             skip=skip,
             limit=limit,
             is_completed=is_completed,
@@ -143,15 +143,15 @@ async def list_todos(
 )
 async def get_todo(
     todo_id: int,
-    session: AsyncSession = Depends(get_session),
-    user_id: int = Query(..., description="User ID (authenticated user)"),
+    current_user: CurrentUserDep,
+    todo_service: TodoServiceDep,
 ) -> TodoResponse:
     """Get single todo by ID for authenticated user.
 
     Args:
         todo_id: Todo ID
-        session: Database session
-        user_id: Authenticated user ID
+        current_user: Authenticated user from JWT token
+        todo_service: Injected todo service
 
     Returns:
         TodoResponse
@@ -160,8 +160,7 @@ async def get_todo(
         HTTPException: If todo not found or user doesn't own it
     """
     try:
-        todo_service = TodoService(session)
-        todo = await todo_service.get_todo(todo_id, user_id)
+        todo = await todo_service.get_todo(todo_id, current_user.id)
 
         if not todo:
             error_response = create_error_response(
@@ -173,7 +172,7 @@ async def get_todo(
                 detail=error_response.model_dump(),
             )
 
-        return TodoResponse.from_attributes(todo)
+        return TodoResponse.model_validate(todo, from_attributes=True)
 
     except HTTPException:
         raise
@@ -199,16 +198,18 @@ async def get_todo(
 async def update_todo(
     todo_id: int,
     data: TodoUpdate,
-    session: AsyncSession = Depends(get_session),
-    user_id: int = Query(..., description="User ID (authenticated user)"),
+    current_user: CurrentUserDep,
+    todo_service: TodoServiceDep,
+    session: SessionDep,
 ) -> TodoResponse:
     """Update todo for authenticated user.
 
     Args:
         todo_id: Todo ID
         data: Todo update request
+        current_user: Authenticated user from JWT token
+        todo_service: Injected todo service
         session: Database session
-        user_id: Authenticated user ID
 
     Returns:
         Updated TodoResponse
@@ -217,13 +218,12 @@ async def update_todo(
         HTTPException: If todo not found or user doesn't own it
     """
     try:
-        todo_service = TodoService(session)
         todo = await todo_service.update_todo(
             todo_id=todo_id,
-            user_id=user_id,
+            user_id=current_user.id,
             **data.model_dump(exclude_unset=True),
         )
-        await todo_service.commit()
+        await session.commit()
 
         return TodoResponse.model_validate(todo, from_attributes=True)
 
@@ -258,23 +258,24 @@ async def update_todo(
 )
 async def delete_todo(
     todo_id: int,
-    session: AsyncSession = Depends(get_session),
-    user_id: int = Query(..., description="User ID (authenticated user)"),
+    current_user: CurrentUserDep,
+    todo_service: TodoServiceDep,
+    session: SessionDep,
 ) -> None:
     """Delete todo for authenticated user.
 
     Args:
         todo_id: Todo ID
+        current_user: Authenticated user from JWT token
+        todo_service: Injected todo service
         session: Database session
-        user_id: Authenticated user ID
 
     Raises:
         HTTPException: If todo not found or user doesn't own it
     """
     try:
-        todo_service = TodoService(session)
-        await todo_service.delete_todo(todo_id, user_id)
-        await todo_service.commit()
+        await todo_service.delete_todo(todo_id, current_user.id)
+        await session.commit()
 
     except ResourceNotFoundException as exc:
         await session.rollback()
