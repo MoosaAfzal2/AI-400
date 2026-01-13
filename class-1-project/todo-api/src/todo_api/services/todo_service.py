@@ -1,6 +1,6 @@
 """Todo service for CRUD operations."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
@@ -162,7 +162,7 @@ class TodoService:
 
         # If marking as completed, set completed_at timestamp
         if kwargs.get("is_completed") and not todo.completed_at:
-            todo.completed_at = datetime.utcnow().isoformat()
+            todo.completed_at = datetime.now(UTC).isoformat()
 
         # If marking as incomplete, clear completed_at
         if not kwargs.get("is_completed") and todo.completed_at:

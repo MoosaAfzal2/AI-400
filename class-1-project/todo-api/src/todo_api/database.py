@@ -1,6 +1,7 @@
 """Database configuration and session management."""
 
 from typing import AsyncGenerator
+import logging
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -10,6 +11,8 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import sessionmaker
 
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 # Build engine kwargs based on database type
 _engine_kwargs = {
@@ -32,19 +35,27 @@ else:
     })
 
 # Create async engine with connection pooling
-engine: AsyncEngine = create_async_engine(
-    settings.DATABASE_URL,
-    **_engine_kwargs,
-)
+# Wrap in try-except to handle missing database drivers in development
+try:
+    engine: AsyncEngine = create_async_engine(
+        settings.DATABASE_URL,
+        **_engine_kwargs,
+    )
+except ModuleNotFoundError as e:
+    logger.warning(f"Database driver not available: {e}. Running in development mode without database.")
+    engine = None
 
-# Create async session factory
-AsyncSessionLocal = sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False,
-    autocommit=False,
-)
+# Create async session factory only if engine exists
+if engine:
+    AsyncSessionLocal = sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        autocommit=False,
+    )
+else:
+    AsyncSessionLocal = None
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -52,7 +63,13 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
     Yields:
         AsyncSession: Database session for request.
+
+    Raises:
+        RuntimeError: If database is not available.
     """
+    if not engine or not AsyncSessionLocal:
+        raise RuntimeError("Database is not available. Check DATABASE_URL and database driver installation.")
+
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -62,12 +79,22 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """Initialize database tables (create if not exist)."""
-    from .models.base import Base
+    if not engine:
+        logger.info("Skipping database initialization - database not available in development mode.")
+        return
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        from .models.base import Base
+
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database initialized successfully.")
+    except Exception as exc:
+        logger.error(f"Failed to initialize database: {exc}")
+        # Don't raise - allow the app to start anyway
 
 
 async def close_db() -> None:
     """Close database connection."""
-    await engine.dispose()
+    if engine:
+        await engine.dispose()
