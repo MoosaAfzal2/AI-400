@@ -49,7 +49,7 @@ async def create_todo(
         )
         await todo_service.commit()
 
-        return TodoResponse.from_attributes(todo)
+        return TodoResponse.model_validate(todo, from_attributes=True)
 
     except Exception as exc:
         await session.rollback()
@@ -78,12 +78,12 @@ async def list_todos(
     is_completed: bool | None = Query(None, description="Filter by completion status"),
     sort_by: str = Query(
         "created_at",
-        regex="^(created_at|updated_at|title)$",
+        pattern="^(created_at|updated_at|title)$",
         description="Field to sort by",
     ),
     sort_order: str = Query(
         "desc",
-        regex="^(asc|desc)$",
+        pattern="^(asc|desc)$",
         description="Sort order",
     ),
 ) -> TodoListResponse:
@@ -116,7 +116,7 @@ async def list_todos(
         )
 
         return TodoListResponse(
-            items=[TodoResponse.from_attributes(todo) for todo in todos],
+            items=[TodoResponse.model_validate(todo, from_attributes=True) for todo in todos],
             total=total,
             skip=skip,
             limit=limit,
@@ -225,7 +225,7 @@ async def update_todo(
         )
         await todo_service.commit()
 
-        return TodoResponse.from_attributes(todo)
+        return TodoResponse.model_validate(todo, from_attributes=True)
 
     except ResourceNotFoundException as exc:
         await session.rollback()

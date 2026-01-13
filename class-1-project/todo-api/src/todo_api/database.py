@@ -11,15 +11,30 @@ from sqlalchemy.orm import sessionmaker
 
 from .config import settings
 
+# Build engine kwargs based on database type
+_engine_kwargs = {
+    "echo": settings.DEBUG,
+    "future": True,
+}
+
+# Only add PostgreSQL-specific options for non-SQLite databases
+if "sqlite" not in settings.DATABASE_URL.lower():
+    _engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 0,
+        "pool_pre_ping": True,
+        "connect_args": {"server_settings": {"application_name": "todo-api"}},
+    })
+else:
+    # SQLite specific settings
+    _engine_kwargs.update({
+        "connect_args": {"check_same_thread": False},
+    })
+
 # Create async engine with connection pooling
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    future=True,
-    pool_size=20,
-    max_overflow=0,
-    pool_pre_ping=True,
-    connect_args={"server_settings": {"application_name": "todo-api"}},
+    **_engine_kwargs,
 )
 
 # Create async session factory
